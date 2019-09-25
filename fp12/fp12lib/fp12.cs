@@ -27,6 +27,8 @@ namespace fp12lib {
         internal const int MANTISSA_BIT_COUNT = 7;
         internal const int EXPONENT_BIT_COUNT = 4;
 
+        internal const int BIAS = 7;
+
         private ushort __value;
 
         public fp12(ushort value) { __value = value; }
@@ -41,6 +43,9 @@ namespace fp12lib {
         public const ushort EXPONENT_MASK = 0b00000111_10000000;
         public int __exponent =>
             ((__value & EXPONENT_MASK) >> MANTISSA_BIT_COUNT);
+
+        public int __unbiased_exponent =>
+            (__exponent - BIAS);
 
         public const ushort MANTISSA_MASK = 0b00000000_01111111;
         public int __mantissa =>
@@ -69,10 +74,41 @@ namespace fp12lib {
 
         // Conversion fp12 -> float
         public static explicit operator float(fp12 value) {
-            // Float bytes layout:
-            // 
+            // TODO: Implement infinities and NaNs
 
-            return 0.0f;
+            float f = new float_bytes()
+                .with_sign((uint) value.__sign)
+                .with_unbiased_exponent(value.__unbiased_exponent)
+                .with_mantissa(((uint)value.__mantissa) << (float_bytes.MANTISSA_BIT_COUNT - MANTISSA_BIT_COUNT))
+                .to_float();
+
+            return f;
+        }
+
+        public static explicit operator fp12(float f) {
+            // TODO: Infs and NaN
+
+            var fb = new float_bytes(f);
+
+
+            // TODO: Check out of range
+
+            ushort fp12 = 0;
+
+            // Sign
+            if (fb.sign == 1) {
+                fp12 |= 0b10000000_00000000;
+            }
+
+            // Exponent
+            uint exponent = (uint)(fb.unbiased_exponent + BIAS);
+            fp12 |= (ushort)((exponent & (EXPONENT_MASK >> MANTISSA_BIT_COUNT)) << MANTISSA_BIT_COUNT);
+
+            // Mantissa
+            uint mantissa = fb.mantissa >> (float_bytes.MANTISSA_BIT_COUNT - MANTISSA_BIT_COUNT);
+            fp12 |= (ushort)mantissa;
+
+            return new fp12(fp12);
         }
     }
 }

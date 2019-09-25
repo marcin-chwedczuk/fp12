@@ -7,8 +7,8 @@ namespace fp12lib {
         private const uint MANTISSA_MASK = 0b00000000_01111111_11111111_11111111;
 
         private const int BIAS = 127;
-        private const int EXPONENT_BIT_COUNT = 8;
-        private const int MANTISSA_BIT_COUNT = 23;
+        internal const int EXPONENT_BIT_COUNT = 8;
+        internal const int MANTISSA_BIT_COUNT = 23;
 
         // Float bytes in **big endian** format.
         // S (1 bit) | E (8 bit) | M (23 bit)

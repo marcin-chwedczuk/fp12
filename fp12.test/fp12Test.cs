@@ -37,5 +37,13 @@ namespace fp12test
             Assert.False(x.is_positive_infinity);
             Assert.True(x.is_negative_infinity);
         }
+
+        [Fact]
+        public void conv_to_float() {
+            fp12 x = (fp12)3.1415f;
+            float fx = (float)x;
+
+            Assert.Equal(3.1415f, fx);
+        }
       }
 }
