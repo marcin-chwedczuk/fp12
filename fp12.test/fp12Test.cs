@@ -38,6 +38,18 @@ namespace fp12test
             Assert.True(x.is_negative_infinity);
         }
 
+
+        [Fact]
+        public void abs_works() {
+            fp12 m3 = (fp12)(-3.0f);
+
+            fp12 m3abs = m3.abs();
+            Assert.Equal((fp12)3.0f, m3abs);
+
+            m3abs = m3abs.abs();
+            Assert.Equal((fp12)3.0f, m3abs);
+        }
+
         public class conversions_between_float_and_fp12 {
 
             [Fact]
@@ -69,7 +81,7 @@ namespace fp12test
 
             [Fact]
             public void zero_converts_to_zero() {
-                fp12 x = fp12.ZERO;
+                fp12 x = fp12.POSITIVE_ZERO;
 
                 float fx = (float)x;
 
@@ -96,7 +108,7 @@ namespace fp12test
                 Assert.True(fp12.POSTIVE_INFINITY == fp12.POSTIVE_INFINITY);
                 Assert.False(fp12.POSTIVE_INFINITY == fp12.NEGATIVE_INFINITY);
 
-                Assert.True(fp12.ZERO == fp12.ZERO);
+                Assert.True(fp12.POSITIVE_ZERO == fp12.POSITIVE_ZERO);
             }
         }
 

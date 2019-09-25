@@ -98,6 +98,20 @@ namespace fp12lib {
             (__exponent < EXPONENT_MIN) &&
             (__mantissa != 0);
 
+        public fp12 abs() {
+            if (this.is_nan) return this;
+
+            // This handles +/- Inf too.
+            ushort new_value = __value;
+            new_value = (ushort) (new_value & ~SIGN_MASK);
+            return new fp12(new_value);
+        }
+
+        public bool is_zero() {
+            return (this.__value == POSITIVE_ZERO.__value)
+                || (this.__value == NEGATIVE_ZERO.__value);
+        }
+
         public bool Equals(fp12 other) {
             return (this == other);
         }
@@ -113,23 +127,16 @@ namespace fp12lib {
         public static readonly fp12 MAX_POSITIVE_VALUE = new fp12(0b0000_0111__0111_1111);
         public static readonly fp12 MIN_POSITIVE_VALUE = new fp12(0b0000_0000__0000_0001);
 
-        public static readonly fp12 ZERO = new fp12(0b0000_0000__0000_0000);
+        public static readonly fp12 POSITIVE_ZERO = new fp12(0b0000_0000__0000_0000);
+        public static readonly fp12 NEGATIVE_ZERO = new fp12(0b0000_1000__0000_0000);
 
         public static bool operator ==(fp12 left, fp12 right) {
             if (left.is_nan || right.is_nan) return false;
 
-            // TODO: +0 == -0
             if (left.__value == right.__value) return true;
 
-            // +0.0 == -0.0
-            if (left.__value == 0 && right.__value == 0b0000_1000__0000_0000) {
-                return true;
-            }
-
-            // -0.0 == +0.0
-            if (left.__value == 0b0000_1000__0000_0000 && right.__value == 0) {
-                return true;
-            }
+            // +0 == -0 and -0 == +0
+            if (left.is_zero() && right.is_zero()) return true;
 
             return false;
         }
@@ -140,12 +147,51 @@ namespace fp12lib {
             return !(left == right);
         }
 
+        public static bool operator >(fp12 left, fp12 right) {
+            if (left.is_nan || right.is_nan) return false;
+
+            if (left.is_positive_infinity && right.is_negative_infinity) return true;
+            if (left.is_negative_infinity && right.is_positive_infinity) return false;
+
+            if (left.is_positive_infinity && right.is_positive_infinity) return false;
+            if (left.is_negative_infinity && right.is_negative_infinity) return false;
+
+            if (left.is_positive_infinity || right.is_negative_infinity) return true;
+            if (left.is_negative_infinity || right.is_positive_infinity) return false;
+
+            // Finite values here.
+            
+            // +/-0 > +/-0
+            if (left.is_zero() && right.is_zero()) return false;
+
+            if (left.__sign == SIGN_POSITIVE && right.__sign == SIGN_NEGATIVE) return true;
+            if (left.__sign == SIGN_NEGATIVE && right.__sign == SIGN_POSITIVE) return false;
+
+            // The same sign from here on.
+
+            bool leftBigger = (left.__exponent > right.__exponent)
+                            || ((left.__exponent == right.__exponent) && (left.__full_mantissa > right.__full_mantissa));
+
+            if (leftBigger) return (left.__sign == SIGN_POSITIVE);
+
+            bool rightBigger = (right.__exponent > left.__exponent)
+                            || ((right.__exponent == left.__exponent) && (right.__full_mantissa > left.__full_mantissa));
+
+            if (rightBigger) return (right.__sign == SIGN_NEGATIVE);
+
+            return false;
+        }
+
+        public static bool operator <(fp12 left, fp12 right) {
+            return false;
+        }
+
         // Conversion fp12 -> float
         public static explicit operator float(fp12 value) {
             if (value.is_nan) { return float.NaN; }
             if (value.is_positive_infinity) { return float.PositiveInfinity; }
             if (value.is_negative_infinity) { return float.NegativeInfinity; }
-            if (value == ZERO) { return 0.0f; }
+            if (value == POSITIVE_ZERO) { return 0.0f; }
 
             uint fMantissa = ((uint)value.__mantissa) << (float_bytes.MANTISSA_BIT_COUNT - MANTISSA_BIT_COUNT);
             int fUnbiasedExponent = value.__unbiased_exponent;
@@ -193,7 +239,7 @@ namespace fp12lib {
 
             // Sign
             if (fb.sign == 1) {
-                fp12 |= 0b10000000_00000000;
+                fp12 |= 0b00001000_00000000;
             }
 
             // Exponent
@@ -246,7 +292,6 @@ namespace fp12lib {
 
             uint MANTISSA_IMPLICIT_1 = 0b0000_0000__1000_0000u;
 
-            // TODO: Handle denormalized values
             if (left.__sign == right.__sign) {
                 // Unnormalized mantissa because of possible
                 // sum of the 1s at the beginnings of the mantissas.
@@ -274,6 +319,10 @@ namespace fp12lib {
 
                 return new fp12((uint)left.__sign, (uint)sumexp, summ);
             }
+
+            // Different signs we will deduct the smaller value
+            // from the bigger one.
+            throw new NotImplementedException("");
 
             return fp12.NaN;
         }
