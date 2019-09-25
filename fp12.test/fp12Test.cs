@@ -99,5 +99,21 @@ namespace fp12test
                 Assert.True(fp12.ZERO == fp12.ZERO);
             }
         }
+
+        public class arithmentic_operations {
+            [Fact]
+            public void operator_plus_works() {
+                fp12 n1 = (fp12)1.0f;
+                fp12 n2 = (fp12)2.0f;
+                fp12 n3 = (fp12)3.0f;
+                fp12 n8 = (fp12)8.0f;
+                fp12 n9 = (fp12)9.0f;
+
+                Assert.Equal(n3, n1 + n2);
+                Assert.Equal(n3, n1 + n1 + n1);
+                Assert.Equal(n9, n8 + n1);
+                Assert.Equal(n9, n3 + n2 + n1 + n2 + n1);
+            }
+        }
      }
 }

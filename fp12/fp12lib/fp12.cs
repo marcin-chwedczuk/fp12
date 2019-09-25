@@ -1,5 +1,7 @@
+using System;
+
 namespace fp12lib {
-    public struct fp12 {
+    public struct fp12: IEquatable<fp12> {
         /*
          * Implementation of 12-bit floating point numbers.
          * __value field structure is as follows:
@@ -33,6 +35,18 @@ namespace fp12lib {
 
         public fp12(ushort value) { __value = value; }
 
+        public fp12(uint sign, uint exponent, uint mantissa) {
+            sign = (sign == 0) ? 0u : 0b0000_1000__0000_0000u;
+            sign <<= (EXPONENT_BIT_COUNT + MANTISSA_BIT_COUNT);
+
+            exponent = exponent & 0b0000_1111u;
+            exponent <<= MANTISSA_BIT_COUNT;
+
+            mantissa = mantissa & 0b0111_1111;
+
+            __value = (ushort)(sign | exponent | mantissa);
+        }
+
         private const ushort SIGN_MASK = 0b0000_1000__0000_0000;
         public int __sign => 
             ((__value & SIGN_MASK) >> (EXPONENT_BIT_COUNT + MANTISSA_BIT_COUNT));
@@ -50,6 +64,18 @@ namespace fp12lib {
         public const ushort MANTISSA_MASK = 0b0000_0000__0111_1111;
         public int __mantissa =>
             (__value & MANTISSA_MASK);
+
+        // Mantissa with leading 1 or 0 (in case of denormalized values).
+        public uint __full_mantissa {
+            get {
+                if (is_denormalized) {
+                    return (uint)__mantissa;
+                }
+                else {
+                    return (uint)__mantissa | (1u << MANTISSA_BIT_COUNT);
+                }
+            }
+        }
 
         internal const int EXPONENT_MIN = 1;
         internal const int EXPONENT_MAX = 14;
@@ -72,6 +98,14 @@ namespace fp12lib {
             (__exponent < EXPONENT_MIN) &&
             (__mantissa != 0);
 
+        public bool Equals(fp12 other) {
+            return (this == other);
+        }
+
+        public override string ToString() {
+            return ((float)this).ToString("R") + "fp";
+        }
+ 
         public static readonly fp12 NaN = new fp12(0b00000111_11111111);
         public static readonly fp12 POSTIVE_INFINITY = new fp12(0b00000111_10000000);
         public static readonly fp12 NEGATIVE_INFINITY = new fp12(0b00001111_10000000);
@@ -108,8 +142,6 @@ namespace fp12lib {
 
         // Conversion fp12 -> float
         public static explicit operator float(fp12 value) {
-            // TODO: Implement infinities and NaNs
-
             if (value.is_nan) { return float.NaN; }
             if (value.is_positive_infinity) { return float.PositiveInfinity; }
             if (value.is_negative_infinity) { return float.NegativeInfinity; }
@@ -176,7 +208,74 @@ namespace fp12lib {
         }
 
         public static fp12 operator +(fp12 left, fp12 right) {
+            if (left.is_nan || right.is_nan) return NaN;
+            if (left.is_positive_infinity && right.is_negative_infinity) return NaN;
+            if (left.is_negative_infinity && right.is_positive_infinity) return NaN;
+
+            if (left.is_positive_infinity && right.is_positive_infinity) return POSTIVE_INFINITY;
+            if (left.is_negative_infinity && right.is_negative_infinity) return NEGATIVE_INFINITY;
+
+            if (left.is_positive_infinity || right.is_positive_infinity) return POSTIVE_INFINITY;
+            if (left.is_negative_infinity || right.is_negative_infinity) return NEGATIVE_INFINITY;
+
+            uint lm = left.__full_mantissa;
+            uint rm = right.__full_mantissa;
+
+            int lexp = left.__exponent;
+            int rexp = right.__exponent;
+
+            int sumexp = Math.Max(lexp, rexp);
+
+            // Make exponents exal by changing to
+            // higher magnitute exponent.
+            if (lexp < rexp) {
+                while (lexp < rexp) {
+                    lm >>= 1;
+                    lexp++;
+                }
+            }
+            else if (lexp > rexp) {
+                while (rexp < lexp) {
+                    rm >>= 1;
+                    rexp++;
+                }
+            }
+
+            // Mantissas may be normalized (with 1s at the beginning)
+            // or denormalized here.
+
+            uint MANTISSA_IMPLICIT_1 = 0b0000_0000__1000_0000u;
+
+            // TODO: Handle denormalized values
+            if (left.__sign == right.__sign) {
+                // Unnormalized mantissa because of possible
+                // sum of the 1s at the beginnings of the mantissas.
+                uint summ = lm + rm;
+
+                // Mantissa too big
+                while (summ > (MANTISSA_MASK + MANTISSA_IMPLICIT_1)) {
+                    summ >>= 1;
+                    sumexp++;
+                }
+
+                // Mantissa too small (we have either 0 or denormalized mantissa).
+                while ((summ < MANTISSA_IMPLICIT_1) && sumexp > 0) {
+                    summ <<= 1;
+                    sumexp--;
+                }
+
+                if (sumexp > EXPONENT_MAX) {
+                    if (left.__sign == SIGN_POSITIVE) { return POSTIVE_INFINITY; }
+                    else { return NEGATIVE_INFINITY; }
+                }
+
+                // Remove start 1 from the mantissa (if it exists).
+                summ = summ & ~MANTISSA_IMPLICIT_1;
+
+                return new fp12((uint)left.__sign, (uint)sumexp, summ);
+            }
+
             return fp12.NaN;
         }
-    }
+   }
 }
