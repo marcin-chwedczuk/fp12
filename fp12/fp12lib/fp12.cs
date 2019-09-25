@@ -27,7 +27,7 @@ namespace fp12lib {
         internal const int MANTISSA_BIT_COUNT = 7;
         internal const int EXPONENT_BIT_COUNT = 4;
 
-        public ushort __value;
+        private ushort __value;
 
         public fp12(ushort value) { __value = value; }
 
@@ -66,5 +66,13 @@ namespace fp12lib {
         public static readonly fp12 NaN = new fp12(0b00000111_11111111);
         public static readonly fp12 POSTIVE_INFINITY = new fp12(0b00000111_10000000);
         public static readonly fp12 NEGATIVE_INFINITY = new fp12(0b00001111_10000000);
+
+        // Conversion fp12 -> float
+        public static explicit operator float(fp12 value) {
+            // Float bytes layout:
+            // 
+
+            return 0.0f;
+        }
     }
 }
