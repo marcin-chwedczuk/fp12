@@ -177,6 +177,22 @@ namespace fp12test
                 Assert.Equal(n8, n9 - n1);
                 Assert.Equal(fp12.POSITIVE_ZERO, n9 - n3 - n2 - n1 - n2 - n1);
             }
+
+            [Fact]
+            public void multiplication_works() {
+                fp12 n1 = (fp12)1.0f;
+                fp12 n2 = (fp12)2.0f;
+                fp12 n4 = (fp12)4.0f;
+
+                Assert.Equal(n1, n1*n1);
+                Assert.Equal(n1, n1*n1*n1*n1*n1);
+
+                Assert.Equal(n4, n2*n2);
+                Assert.Equal(n4, n2*n1*n2);
+
+                Assert.Equal(n4, n4*n1);
+                Assert.Equal(n4, n1*n4);
+            }
         }
      }
 }

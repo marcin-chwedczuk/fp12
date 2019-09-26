@@ -27,6 +27,7 @@ namespace fp12lib {
          */
 
         internal const int MANTISSA_BIT_COUNT = 7;
+        internal const int FULL_MANTISSA_BIT_COUNT = MANTISSA_BIT_COUNT + 1;
         internal const int EXPONENT_BIT_COUNT = 4;
 
         internal const int BIAS = 7;
@@ -390,6 +391,75 @@ namespace fp12lib {
 
         public static fp12 operator -(fp12 left, fp12 right) {
             return left + (-right);
+        }
+
+        public static fp12 operator *(fp12 left, fp12 right) {
+            // TODO: NaNs + Infinities
+
+            uint lm = left.__full_mantissa;
+            uint rm = right.__full_mantissa;
+
+            int lexp = left.__unbiased_exponent;
+            int rexp = right.__unbiased_exponent;
+
+            // Mantissas are 7-bit long, we can safely multiply them
+            // using integer multiplication
+            uint mult_full_mantissa = lm * rm;
+            int mult_unbiased_exp = lexp + rexp;
+            uint mult_sign = (left.__sign == right.__sign) ? 0u : 1u;
+
+            if (mult_full_mantissa == 0) {
+                return mult_sign == 0u ? POSITIVE_ZERO : NEGATIVE_ZERO;
+            }
+
+            // To avoid precission lost, we will try to operate on
+            // denormalized values mantissa - before rejecting extra bits.
+            uint MANTISSA_SQ_IMPLICIT_1 = MANTISSA_IMPLICIT_1 * MANTISSA_IMPLICIT_1;
+            while (mult_full_mantissa < MANTISSA_SQ_IMPLICIT_1) {
+                mult_full_mantissa <<= 1;
+                mult_unbiased_exp--;
+            }
+
+            // remove non significant digits
+            // left*2^7 * right*2^7 = left*right*2^14 =
+            // = left*right*2^7 * 2^7 (7 = MANTISSA_BIT_COUNT)
+            mult_full_mantissa >>= MANTISSA_BIT_COUNT;
+            if (mult_full_mantissa == 0) {
+                // Underflow 1.
+                return mult_sign == 0u ? POSITIVE_ZERO : NEGATIVE_ZERO;
+            }
+
+            // Mantissa too big
+            while (mult_full_mantissa > (MANTISSA_MASK + MANTISSA_IMPLICIT_1)) {
+                mult_full_mantissa >>= 1;
+                mult_unbiased_exp++;
+            }
+
+            if ((mult_unbiased_exp + BIAS) > EXPONENT_MAX) {
+                // Overflow
+                return mult_sign == SIGN_POSITIVE ? POSTIVE_INFINITY : NEGATIVE_INFINITY;
+            }
+
+            // Mantissa too small?
+            while ((mult_unbiased_exp + BIAS) < EXPONENT_MIN && (mult_full_mantissa != 0)) {
+                mult_full_mantissa >>= 1;
+                mult_unbiased_exp++;
+            }
+
+            if ((mult_unbiased_exp + BIAS) < EXPONENT_MIN || mult_full_mantissa == 0) {
+                // Underflow 2
+                return mult_sign == SIGN_POSITIVE ? POSITIVE_ZERO : NEGATIVE_ZERO;
+            }
+
+            // Adjust exponent for denormalized values
+            if ((mult_full_mantissa & MANTISSA_IMPLICIT_1) == 0) {
+                mult_unbiased_exp--; // Move one down
+            }
+
+            // Remove one (if it exists)
+            uint mult_mantissa = mult_full_mantissa & ~MANTISSA_IMPLICIT_1;
+
+            return new fp12(mult_sign, (uint)(mult_unbiased_exp + BIAS), mult_mantissa);
         }
 
         private static uint negate_sign(int sign)
