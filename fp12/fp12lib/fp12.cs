@@ -37,7 +37,6 @@ namespace fp12lib {
 
         public fp12(uint sign, uint exponent, uint mantissa) {
             sign = (sign == 0) ? 0u : 0b0000_1000__0000_0000u;
-            sign <<= (EXPONENT_BIT_COUNT + MANTISSA_BIT_COUNT);
 
             exponent = exponent & 0b0000_1111u;
             exponent <<= MANTISSA_BIT_COUNT;
@@ -97,8 +96,7 @@ namespace fp12lib {
             (__sign == SIGN_NEGATIVE);
 
         public bool is_denormalized =>
-            (__exponent < EXPONENT_MIN) &&
-            (__mantissa != 0);
+            (__exponent < EXPONENT_MIN);
 
         public fp12 abs() {
             if (this.is_nan) return this;
@@ -205,8 +203,8 @@ namespace fp12lib {
             uint fMantissa = ((uint)value.__mantissa) << (float_bytes.MANTISSA_BIT_COUNT - MANTISSA_BIT_COUNT);
             int fUnbiasedExponent = value.__unbiased_exponent;
 
-            if (value.is_denormalized) {
-                // Shift mantissa left untill we get a 1 at the
+            if (value.is_denormalized && (fMantissa != 0)) {
+                // Shift mantissa left until we get a 1 at the
                 // begining to get a normalized value.
                 // Float has much broader range so there
                 // should be no problem with exponend out of range.
@@ -358,29 +356,43 @@ namespace fp12lib {
             // Different signs we will deduct the smaller value
             // from the bigger one.
             uint subtractM;
-            int signM;
+            uint signM;
             if (lm >= rm) {
                 subtractM = lm - rm;
-                signM = left.__sign;
+                signM = (uint) left.__sign;
             }
             else {
                 subtractM = rm - lm;
                 signM = negate_sign(right.__sign);
             }
 
-            // Mantissa may be ZERO or may be too small.
-            while ((subtractM > 0) && (subtractM < MANTISSA_IMPLICIT_1) && sumexp > 0) {
+            // Mantissa may may be too small. Normalized up to 2^-6
+            while ((subtractM < MANTISSA_IMPLICIT_1) && sumexp > 1) {
                 subtractM <<= 1;
                 sumexp--;
+            }
+
+            // If there is no 1 at the mantissa beginning
+            // then we are in denormalized range:
+            if ((subtractM & MANTISSA_IMPLICIT_1) == 0) {
+                sumexp = 0; // mark as denormalized
             }
 
             // Remove start 1 from the mantissa (if it exists).
             subtractM &= ~MANTISSA_IMPLICIT_1;
 
-            return new fp12((uint)signM, (uint)sumexp, subtractM);
+            return new fp12(signM, (uint)sumexp, subtractM);
         }
 
-        private static int negate_sign(int sign)
-            => 1 - sign;
+        public static fp12 operator -(fp12 value) {
+            return new fp12(negate_sign(value.__sign), (uint)value.__exponent, (uint)value.__mantissa);
+        }
+
+        public static fp12 operator -(fp12 left, fp12 right) {
+            return left + (-right);
+        }
+
+        private static uint negate_sign(int sign)
+            => (sign == 0) ? 1u : 0u;
    }
 }

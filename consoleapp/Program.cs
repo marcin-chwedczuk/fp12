@@ -8,7 +8,7 @@ namespace consoleapp
         static void Main(string[] args)
         {
             fp12 x = fp12.POSITIVE_ZERO;
-            fp12 delta = (fp12)0.5f;
+            fp12 delta = (fp12)0.1f;
 
             Console.WriteLine("x = {0}", x);
             Console.WriteLine("delta = {0}", delta);

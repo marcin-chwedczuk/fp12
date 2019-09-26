@@ -25,5 +25,14 @@ namespace fp12test {
 
             Assert.Equal(-6.0f, f);
         }
+
+        [Fact]
+        public void can_get_sign() {
+            var fb = new float_bytes(-1.0f);
+            Assert.Equal(1u, fb.sign);
+
+            fb = new float_bytes(1.0f);
+            Assert.Equal(0u, fb.sign);
+        }
     }
 }

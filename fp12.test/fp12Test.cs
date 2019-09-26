@@ -144,6 +144,39 @@ namespace fp12test
                 fp12 expected = (fp12)0.01390625f;
                 Assert.Equal(expected, result);
             }
+
+            [Fact]
+            public void negation_works() {
+                fp12 a = (fp12)0.01f;
+                fp12 negA = (fp12)(-0.01f);
+
+                Assert.Equal(negA, -a);
+            }
+
+
+            [Fact]
+            public void can_subtract_one_from_one() {
+                var zero = fp12.POSITIVE_ZERO;
+                var one = (fp12)1.0f;
+
+                var result = one - one;
+
+                Assert.Equal(zero, result);
+            }
+
+            [Fact]
+            public void subtraction_works() {
+                fp12 n1 = (fp12)1.0f;
+                fp12 n2 = (fp12)2.0f;
+                fp12 n3 = (fp12)3.0f;
+                fp12 n8 = (fp12)8.0f;
+                fp12 n9 = (fp12)9.0f;
+
+                Assert.Equal(n1, n2 - n1);
+                Assert.Equal(n3, n8 - n3 - n2);
+                Assert.Equal(n8, n9 - n1);
+                Assert.Equal(fp12.POSITIVE_ZERO, n9 - n3 - n2 - n1 - n2 - n1);
+            }
         }
      }
 }
