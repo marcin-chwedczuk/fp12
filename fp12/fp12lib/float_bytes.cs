@@ -10,6 +10,8 @@ namespace fp12lib {
         internal const int EXPONENT_BIT_COUNT = 8;
         internal const int MANTISSA_BIT_COUNT = 23;
 
+        internal const uint MANTISSA_IMPLICIT_1 = 1u << MANTISSA_BIT_COUNT;
+
         // Float bytes in **big endian** format.
         // S (1 bit) | E (8 bit) | M (23 bit)
         private uint __bytes;
@@ -25,6 +27,10 @@ namespace fp12lib {
 
         public uint mantissa =>
             (__bytes & MANTISSA_MASK);
+
+        public uint full_mantissa =>
+            // TODO: Support denormalized values
+            (mantissa | (1u << MANTISSA_BIT_COUNT));
 
         public float_bytes(float f) {
             var tmp = BitConverter.GetBytes(f);

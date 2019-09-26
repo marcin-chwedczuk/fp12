@@ -59,11 +59,13 @@ namespace fp12lib {
             ((__value & EXPONENT_MASK) >> MANTISSA_BIT_COUNT);
 
         public int __unbiased_exponent =>
-            (__exponent - BIAS);
+            is_denormalized ? (EXPONENT_MIN - BIAS) : (__exponent - BIAS);
 
         public const ushort MANTISSA_MASK = 0b0000_0000__0111_1111;
         public int __mantissa =>
             (__value & MANTISSA_MASK);
+        
+        private const uint MANTISSA_IMPLICIT_1 = 0b0000_0000__1000_0000u;
 
         // Mantissa with leading 1 or 0 (in case of denormalized values).
         public uint __full_mantissa {
@@ -107,10 +109,14 @@ namespace fp12lib {
             return new fp12(new_value);
         }
 
-        public bool is_zero() {
-            return (this.__value == POSITIVE_ZERO.__value)
-                || (this.__value == NEGATIVE_ZERO.__value);
-        }
+        public bool is_positive_zero =>
+            (this.__value == POSITIVE_ZERO.__value);
+
+        public bool is_negative_zero =>
+            (this.__value == NEGATIVE_ZERO.__value);
+
+        public bool is_zero() =>
+            is_positive_zero || is_negative_zero;
 
         public bool Equals(fp12 other) {
             return (this == other);
@@ -189,9 +195,12 @@ namespace fp12lib {
         // Conversion fp12 -> float
         public static explicit operator float(fp12 value) {
             if (value.is_nan) { return float.NaN; }
+
             if (value.is_positive_infinity) { return float.PositiveInfinity; }
             if (value.is_negative_infinity) { return float.NegativeInfinity; }
-            if (value == POSITIVE_ZERO) { return 0.0f; }
+
+            if (value.is_positive_zero) { return +0.0f; }
+            if (value.is_negative_zero) { return -0.0f; }
 
             uint fMantissa = ((uint)value.__mantissa) << (float_bytes.MANTISSA_BIT_COUNT - MANTISSA_BIT_COUNT);
             int fUnbiasedExponent = value.__unbiased_exponent;
@@ -203,14 +212,14 @@ namespace fp12lib {
                 // should be no problem with exponend out of range.
                 // TODO: Check above
 
-                uint m = (uint) value.__mantissa;
-                while ((m & (1u << MANTISSA_BIT_COUNT)) == 0) {
+                uint m = fMantissa;
+                while ((m & float_bytes.MANTISSA_IMPLICIT_1) == 0) {
                     m <<= 1;
                     fUnbiasedExponent--;
                 }
 
                 // Clear top '1' that is implicit.
-                m &= ~(1u << MANTISSA_BIT_COUNT);
+                m &= ~float_bytes.MANTISSA_IMPLICIT_1;
 
                 fMantissa = m;
             }
@@ -235,22 +244,49 @@ namespace fp12lib {
             // TODO: Denormalized values
             // TODO: Check out of range
 
-            ushort fp12 = 0;
-
             // Sign
-            if (fb.sign == 1) {
-                fp12 |= 0b00001000_00000000;
-            }
+            uint sign = fb.sign == 0 ? 0u : 1u;
 
             // Exponent
-            uint exponent = (uint)(fb.unbiased_exponent + BIAS);
-            fp12 |= (ushort)((exponent & (EXPONENT_MASK >> MANTISSA_BIT_COUNT)) << MANTISSA_BIT_COUNT);
+            int exponent = fb.unbiased_exponent + BIAS;
+            if (exponent > EXPONENT_MAX) {
+                // OVERFLOW
+                return sign == 0 ? POSTIVE_INFINITY : NEGATIVE_INFINITY;
+            }
 
-            // Mantissa
-            uint mantissa = fb.mantissa >> (float_bytes.MANTISSA_BIT_COUNT - MANTISSA_BIT_COUNT);
-            fp12 |= (ushort)mantissa;
+            uint full_mantissa = fb.full_mantissa >> (float_bytes.MANTISSA_BIT_COUNT - MANTISSA_BIT_COUNT);
 
-            return new fp12(fp12);
+            if (exponent == 0) {
+                // Denormalized values are in form
+                // 0.MMMMM x 2-6
+                // Value here is in form:
+                // 1.XXXX x 2-7
+                // We just need to shift it right
+                full_mantissa >>= 1;
+            }
+            else if (exponent < 0) {
+                // Convert to denormalized value if possible
+                while ((exponent < 0) && (full_mantissa > 0)) {
+                    exponent++;
+                    full_mantissa >>= 1;
+                }
+
+                // We have value in form:
+                // 0.XXXXX x 2-7
+                // Denormalized values are multplied by 2-6, we
+                // need to adjust a*2^-7 = (a/2)*2^-6
+                full_mantissa >>= 1;
+ 
+                if (exponent < 0 || full_mantissa == 0) {
+                    // UNDERFLOW
+                    return sign == 0 ? POSITIVE_ZERO : NEGATIVE_ZERO;
+                }
+           }
+
+            // Remove leading 1 from mantissa
+            full_mantissa &= ~MANTISSA_IMPLICIT_1;
+
+            return new fp12(sign, (uint)exponent, full_mantissa);
         }
 
         public static fp12 operator +(fp12 left, fp12 right) {
@@ -290,7 +326,6 @@ namespace fp12lib {
             // Mantissas may be normalized (with 1s at the beginning)
             // or denormalized here.
 
-            uint MANTISSA_IMPLICIT_1 = 0b0000_0000__1000_0000u;
 
             if (left.__sign == right.__sign) {
                 // Unnormalized mantissa because of possible
@@ -322,9 +357,30 @@ namespace fp12lib {
 
             // Different signs we will deduct the smaller value
             // from the bigger one.
-            throw new NotImplementedException("");
+            uint subtractM;
+            int signM;
+            if (lm >= rm) {
+                subtractM = lm - rm;
+                signM = left.__sign;
+            }
+            else {
+                subtractM = rm - lm;
+                signM = negate_sign(right.__sign);
+            }
 
-            return fp12.NaN;
+            // Mantissa may be ZERO or may be too small.
+            while ((subtractM > 0) && (subtractM < MANTISSA_IMPLICIT_1) && sumexp > 0) {
+                subtractM <<= 1;
+                sumexp--;
+            }
+
+            // Remove start 1 from the mantissa (if it exists).
+            subtractM &= ~MANTISSA_IMPLICIT_1;
+
+            return new fp12((uint)signM, (uint)sumexp, subtractM);
         }
+
+        private static int negate_sign(int sign)
+            => 1 - sign;
    }
 }

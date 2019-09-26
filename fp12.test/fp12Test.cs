@@ -67,7 +67,7 @@ namespace fp12test
                 
                 float fx = (float)x;
 
-                Assert.Equal(6.103515625E-05, fx);
+                Assert.Equal(0.0001220703125f, fx);
             }
  
             [Fact]
@@ -125,6 +125,24 @@ namespace fp12test
                 Assert.Equal(n3, n1 + n1 + n1);
                 Assert.Equal(n9, n8 + n1);
                 Assert.Equal(n9, n3 + n2 + n1 + n2 + n1);
+            }
+
+            [Fact]
+            public void bug_small_value_converted_to_infinity() {
+                fp12 b = (fp12)0.00390625559f;
+
+                Assert.False(b.is_positive_infinity);
+            }
+
+            [Fact]
+            public void bug_wrong_normalization_after_addition() {
+                fp12 a = (fp12)0.01f;
+                fp12 b = (fp12)0.00390625f;
+
+                fp12 result = a + b;
+
+                fp12 expected = (fp12)0.01390625f;
+                Assert.Equal(expected, result);
             }
         }
      }
