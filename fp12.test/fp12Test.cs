@@ -183,6 +183,8 @@ namespace fp12test
                 fp12 n1 = (fp12)1.0f;
                 fp12 n2 = (fp12)2.0f;
                 fp12 n4 = (fp12)4.0f;
+                fp12 n0_5 = (fp12)0.5f;
+                fp12 n0_25 = (fp12)0.25f;
 
                 Assert.Equal(n1, n1*n1);
                 Assert.Equal(n1, n1*n1*n1*n1*n1);
@@ -192,6 +194,26 @@ namespace fp12test
 
                 Assert.Equal(n4, n4*n1);
                 Assert.Equal(n4, n1*n4);
+
+                Assert.Equal(n0_25, n0_5*n0_5);
+                Assert.Equal(n1, n0_25*n4);
+            }
+
+            [Fact]
+            public void bug2() {
+                Assert.Equal((fp12)1.0f, (fp12)(-0.5f) - (fp12)(-1.5));
+
+                float x = -0.5f;
+                fp12 xfp12 = (fp12)x;
+
+                fp12 _4_x3 = ((fp12)4.0f) *xfp12*xfp12*xfp12;
+                Assert.Equal((fp12)(-0.5f), _4_x3);
+
+                fp12 _3x = ((fp12)3.0f)*xfp12;
+                Assert.Equal((fp12)(-1.5f), _3x);
+
+                fp12 c3fp12 = _4_x3 - _3x;
+                Assert.Equal((fp12)1f, c3fp12);
             }
         }
      }

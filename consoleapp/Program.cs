@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Text;
+using System.IO;
 using fp12lib;
 
 namespace consoleapp
@@ -7,25 +9,24 @@ namespace consoleapp
     {
         static void Main(string[] args)
         {
-            fp12 x = fp12.POSITIVE_ZERO;
-            fp12 delta = (fp12)0.1f;
+            // Draw using gnuplot> plot 'chart.txt' using 1:2, "" u 3:4
 
-            Console.WriteLine("x = {0}", x);
-            Console.WriteLine("delta = {0}", delta);
+            StringBuilder sb = new StringBuilder();
+            sb.Append("x float xfp12 fp12").AppendLine();
 
-            for (int i = 0; i < 100; i++) {
-                x = x + delta;
-                Console.WriteLine("x = {0}", x);
+            int POINTS_COUNT = 100;
+            for (int i = 0; i < POINTS_COUNT; i++) {
+                float x = -1.0f + i * 2.0f / POINTS_COUNT;
+
+                float c3f = 4*x*x*x - 3*x;
+
+                fp12 xfp12 = (fp12)x;
+                fp12 c3fp12 = ((fp12)4.0f) *xfp12*xfp12*xfp12 - ((fp12)3.0f)*xfp12;
+
+                sb.AppendFormat("{0} {1} {2} {3}", x, c3f, (float)xfp12, (float)c3fp12).AppendLine();
             }
 
-            return;
-
-            while (!x.is_positive_infinity) {
-                Console.WriteLine(x);
-                x += delta;
-            }
-
-            Console.WriteLine("Hello World!");
+            File.WriteAllText("/home/mc/chart.txt", sb.ToString());
         }
     }
 }

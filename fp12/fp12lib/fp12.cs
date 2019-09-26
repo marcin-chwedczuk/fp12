@@ -364,7 +364,7 @@ namespace fp12lib {
             }
             else {
                 subtractM = rm - lm;
-                signM = negate_sign(right.__sign);
+                signM = (uint) right.__sign;
             }
 
             // Mantissa may may be too small. Normalized up to 2^-6
