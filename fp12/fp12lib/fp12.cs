@@ -491,6 +491,13 @@ namespace fp12lib {
                 return div_sign == SIGN_POSITIVE ? POSITIVE_ZERO : NEGATIVE_ZERO;
             }
 
+            // Normalize non-zero mantissa, exp will be adjusted later.
+            // This operation will not cause prcision lost (we only add digits).
+            while (div_full_mantissa < MANTISSA_IMPLICIT_1) {
+                div_full_mantissa <<= 1;
+                div_unbiased_exp--;
+            }
+
             // Mantissa too big
             while (div_full_mantissa > (MANTISSA_MASK + MANTISSA_IMPLICIT_1)) {
                 div_full_mantissa >>= 1;

@@ -237,6 +237,18 @@ namespace fp12test
                 Assert.Equal(n4, n1/n0_25);
             }
 
+            [Fact]
+            public void division_bug() {
+                // x 1/x fpX fp1/X
+                // 0.0303 33.0033 0.03027344 48.5
+                // 0.03175 31.49606 0.03173828 31.75
+
+                fp12 x = (fp12)0.0303f;
+                fp12 one = ((fp12)1.0f);
+                fp12 rx = one / x;
+
+                Assert.True(rx < ((fp12)35.0f));
+            }
         }
      }
 }
