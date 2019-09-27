@@ -188,7 +188,8 @@ namespace fp12lib {
         }
 
         public static bool operator <(fp12 left, fp12 right) {
-            return false;
+            if (left.is_nan || right.is_nan) return false;
+            return !(left > right);
         }
 
         // Conversion fp12 -> float
