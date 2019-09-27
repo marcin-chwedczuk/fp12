@@ -462,6 +462,74 @@ namespace fp12lib {
             return new fp12(mult_sign, (uint)(mult_unbiased_exp + BIAS), mult_mantissa);
         }
 
+        public static fp12 operator /(fp12 left, fp12 right) {
+            // TODO: Handle NaNs and infinities
+
+            uint div_sign = (left.__sign == right.__sign) ? 0u : 1u;
+
+            if (right.is_zero()) {
+                // TODO: Handle 0.0 / 0.0
+                return div_sign == SIGN_POSITIVE ? POSTIVE_INFINITY : NEGATIVE_INFINITY;
+            }
+
+            uint lm = left.__full_mantissa;
+            uint rm = right.__full_mantissa;
+
+            int lexp = left.__unbiased_exponent;
+            int rexp = right.__unbiased_exponent;
+
+            // To obtain result we will preform integer
+            // division on lm an drm:
+            // (left*2^7)*2^7 / (right*2^7) = (left/right)*2^7
+
+            // Since full mantissas have only 8-bits we can
+            // use uint's to perform the division (or even ushorts + overflow).
+            uint div_full_mantissa = (lm << MANTISSA_BIT_COUNT) / rm;
+            int div_unbiased_exp = lexp - rexp;
+
+            if (div_full_mantissa == 0) {
+                return div_sign == SIGN_POSITIVE ? POSITIVE_ZERO : NEGATIVE_ZERO;
+            }
+
+            // Mantissa too big
+            while (div_full_mantissa > (MANTISSA_MASK + MANTISSA_IMPLICIT_1)) {
+                div_full_mantissa >>= 1;
+                div_unbiased_exp++;
+            }
+
+            // Exponent too big
+            if ((div_unbiased_exp + BIAS) > EXPONENT_MAX) {
+                // Overflow
+                return div_sign == SIGN_POSITIVE ? POSTIVE_INFINITY : NEGATIVE_INFINITY;
+            }
+
+            // Exponent is too small
+            while ((div_unbiased_exp + BIAS) < EXPONENT_MIN && (div_full_mantissa != 0)) {
+                div_full_mantissa >>= 1;
+                div_unbiased_exp++;
+            }
+
+            // Cannot normalize too small exponent or mantissa == 0 after/during normalization
+            if ((div_unbiased_exp + BIAS) < EXPONENT_MIN || div_full_mantissa == 0) {
+                // Underflow
+                return div_sign == SIGN_POSITIVE ? POSITIVE_ZERO : NEGATIVE_ZERO;
+            }
+
+            // Adjust exponent for denormalized values
+            uint div_exp;
+            if ((div_full_mantissa & MANTISSA_IMPLICIT_1) == 0) {
+                div_exp = (uint) (div_unbiased_exp + BIAS - 1); // Encode denorm value
+            }
+            else {
+                div_exp = (uint) (div_unbiased_exp + BIAS);
+            }
+
+            // Remove one (if it exists)
+            uint div_mantissa = div_full_mantissa & ~MANTISSA_IMPLICIT_1;
+
+            return new fp12(div_sign, div_exp, div_mantissa);
+        }
+
         private static uint negate_sign(int sign)
             => (sign == 0) ? 1u : 0u;
    }

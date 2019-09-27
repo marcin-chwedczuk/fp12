@@ -200,7 +200,7 @@ namespace fp12test
             }
 
             [Fact]
-            public void bug2() {
+            public void sign_changes_are_properly_handled() {
                 Assert.Equal((fp12)1.0f, (fp12)(-0.5f) - (fp12)(-1.5));
 
                 float x = -0.5f;
@@ -215,6 +215,28 @@ namespace fp12test
                 fp12 c3fp12 = _4_x3 - _3x;
                 Assert.Equal((fp12)1f, c3fp12);
             }
+
+            [Fact]
+            public void division_works() {
+                fp12 n1 = (fp12)1.0f;
+                fp12 n2 = (fp12)2.0f;
+                fp12 n4 = (fp12)4.0f;
+                fp12 n0_5 = (fp12)0.5f;
+                fp12 n0_25 = (fp12)0.25f;
+
+                Assert.Equal(n1, n1/n1);
+                Assert.Equal(n1, n1/n1/n1/n1/n1);
+
+                Assert.Equal(n2, n4/n2);
+                Assert.Equal(n2, n4/n1/n2);
+
+                Assert.Equal(n1, n4/n4);
+                Assert.Equal(n0_25, n1/n4);
+
+                Assert.Equal(n2, n0_5/n0_25);
+                Assert.Equal(n4, n1/n0_25);
+            }
+
         }
      }
 }
