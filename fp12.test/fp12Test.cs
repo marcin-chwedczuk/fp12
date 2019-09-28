@@ -249,6 +249,54 @@ namespace fp12test
 
                 Assert.True(rx < ((fp12)35.0f));
             }
+
+            [Fact]
+            public void conversion_should_round_to_next_value() {
+                float s3  = -1.98412698298579493134e-04f;
+
+                fp12 S3 = (fp12)s3;
+
+                Assert.Equal((fp12)(-0.000244140625f), S3);
+            }
+
+            [Fact]
+            public void sin_bug() {
+                // 1.382304 0.9822379 1.375 0.96875
+                // 1.394085 0.9843733 1.390625 0.9921875
+
+                float x = 1.375f;
+                fp12 X = (fp12)x;
+
+                float x2 = x * x;
+                fp12 X2 = X * X;
+
+                float x3 = x * x2;
+                fp12 X3 = X * X2;
+                fp12 EXPECTED_X3 = (fp12)2.59960938f;
+
+                float s1  = -1.66666666666666324348e-01f;
+                float s2  =  8.33333333332248946124e-03f;
+                float s3  = -1.98412698298579493134e-04f;
+
+                fp12 S1 = (fp12)s1;
+                fp12 S2 = (fp12)s2;
+                fp12 S3 = (fp12)s3;
+
+                S1 = (fp12)(-0.166992188f);
+
+                var step1 = s2 + x2*s3;
+                var STEP1 = S2 + X2*S3;
+
+
+                var step2 = s1 + x2*step1;
+                var STEP2 = S1 + X2*STEP1;
+
+                var step3 = x + x3*step2;
+                var STEP3 = X + X3*STEP2;
+
+                Assert.Equal(0.980845451f, step3);
+                Assert.Equal(fp12.POSITIVE_ZERO, STEP3);
+            }
         }
      }
 }

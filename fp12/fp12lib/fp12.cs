@@ -249,12 +249,27 @@ namespace fp12lib {
 
             // Exponent
             int exponent = fb.unbiased_exponent + BIAS;
+
+            uint full_mantissa = fb.full_mantissa >> (float_bytes.MANTISSA_BIT_COUNT - MANTISSA_BIT_COUNT);
+
+            // Rounding
+            uint rounding_bit = 1u & (fb.full_mantissa >> (float_bytes.MANTISSA_BIT_COUNT - MANTISSA_BIT_COUNT - 1));
+            if (rounding_bit == 1) {
+                full_mantissa += 1;
+
+                // Imagine M=1.11...11 and rounding_bit=1, we need to fix
+                // mantissa after this operation.
+                if (full_mantissa > (MANTISSA_IMPLICIT_1 + MANTISSA_MASK)) {
+                    full_mantissa >>= 1;
+                    exponent++;
+                }
+            }
+
             if (exponent > EXPONENT_MAX) {
                 // OVERFLOW
                 return sign == 0 ? POSTIVE_INFINITY : NEGATIVE_INFINITY;
             }
 
-            uint full_mantissa = fb.full_mantissa >> (float_bytes.MANTISSA_BIT_COUNT - MANTISSA_BIT_COUNT);
 
             if (exponent == 0) {
                 // Denormalized values are in form
@@ -266,16 +281,41 @@ namespace fp12lib {
             }
             else if (exponent < 0) {
                 // Convert to denormalized value if possible
+                rounding_bit = 0;
                 while ((exponent < 0) && (full_mantissa > 0)) {
                     exponent++;
+                    
+                    rounding_bit = full_mantissa & 1u;
                     full_mantissa >>= 1;
                 }
 
-                // We have value in form:
-                // 0.XXXXX x 2-7
-                // Denormalized values are multplied by 2-6, we
-                // need to adjust a*2^-7 = (a/2)*2^-6
-                full_mantissa >>= 1;
+                    // Rounding
+                    if (rounding_bit == 1) {
+                        full_mantissa++;
+                    }
+
+                if ((full_mantissa & MANTISSA_IMPLICIT_1) == 0) {
+                    // We have value in form:
+                    // 0.XXXXX x 2-7
+                    // Denormalized values are multplied by 2-6, we
+                    // need to adjust a*2^-7 = (a/2)*2^-6
+
+                    rounding_bit = full_mantissa & 1u;
+                    full_mantissa >>= 1;
+
+                    // Rounding again (because we divided by two)
+                    full_mantissa += rounding_bit;
+
+                    if ((full_mantissa & MANTISSA_IMPLICIT_1) == 1) {
+                        // After applying rounding we may get 1.MMMM
+                        // In that case we remove denorm marker,
+                        // after all for exp=0 and exp=1 we use the same value 2^-6.
+                        // This thinking is only value for exponent == 0
+                        if (exponent == 0) {
+                            exponent = 1;
+                        }
+                    }
+                }
  
                 if (exponent < 0 || full_mantissa == 0) {
                     // UNDERFLOW
